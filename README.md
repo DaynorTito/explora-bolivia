@@ -265,14 +265,6 @@ Se pueden realizar busquedas por nombr eo descirpcion, asi tambien como filtrado
 
 ![alt text](explora-bolivia-client/docs/image-11.png)
 
-### Despliegue
-
-Se realizo el despliegue con la conexion con el servidor se encuentra en la url
-
-Se aparece alguna advertencia de sitio inseguro se omitr y acceder a esta url
-
-Si el link no responde quiza sea necesario darle permisos desde el navegador a la url del servidor (http://18.231.107.133:4000/api/v1/
-) cceder a esta url desde cualquier navegador y acceder tambien luego a la url del cliente que es
 
 ### http://56.124.121.148:3000/
 
@@ -320,7 +312,6 @@ El pipeline de GitLab CI/CD incluye:
 4. Pruebas
 5. Construcción de imagen Docker
 6. Publicación de imagen
-7. Despliegue
 
 ## Requisitos del Sistema
 - Node.js 20.x o superior
