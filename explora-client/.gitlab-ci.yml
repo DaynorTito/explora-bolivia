@@ -1,0 +1,112 @@
+stages:
+  - setup_environment
+  - install_dependencies
+  - lint
+  - run_tests
+  - build_image
+  - push_image
+  - deploy
+
+variables:
+  VERSION: ${CI_COMMIT_SHORT_SHA}
+
+setup_environment:
+  stage: setup_environment
+  image: node:20
+  script:
+    - echo "Setting up environment..."
+    - node -v
+    - npm -v
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+install_dependencies:
+  stage: install_dependencies
+  image: node:20
+  script:
+    - echo "Installing dependencies..."
+    - npm install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+lint:
+  stage: lint
+  image: node:20
+  dependencies:
+    - install_dependencies
+  script:
+    - echo "Running lint..."
+    - npm run lint
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+run_tests:
+  stage: run_tests
+  image: node:20
+  dependencies:
+    - install_dependencies
+  script:
+    - echo "Running tests..."
+    - npm test
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+  rules:
+    - if: $CI_COMMIT_BRANCH
+
+build_image:
+  stage: build_image
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - install_dependencies
+  before_script:
+    - echo "Logging in to Docker..."
+    - apk add --no-cache git curl jq
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Building Docker image..."
+    - echo "$NEXT_PUBLIC_BASE_URL" > .env
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$VERSION .
+    - mkdir -p image
+    - docker save $CI_REGISTRY_IMAGE/frontend:$VERSION > image/image.tar
+  artifacts:
+    paths:
+      - image/
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+push_image:
+  stage: push_image
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - build_image
+  before_script:
+    - echo "Preparing to push Docker image..."
+    - apk add --no-cache git curl
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - echo "Pushing Docker image..."
+    - docker load < image/image.tar
+    - docker push $CI_REGISTRY_IMAGE/frontend:$VERSION
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        curl --request POST \
+          --header "PRIVATE-TOKEN: ${CI_API_TOKEN}" \
+          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/repository/tags?tag_name=${VERSION}&ref=main"
+      fi
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
